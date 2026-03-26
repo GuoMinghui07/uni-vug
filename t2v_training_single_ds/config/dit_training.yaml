@@ -1,0 +1,108 @@
+# DiT Stage-2 Video Training Configuration (OpenVid-1M streaming)
+
+model:
+  # MLLM encoder
+  mllm_model_name: "Qwen/Qwen3-VL-4B-Instruct"
+  num_metaqueries: 256
+  mllm_hidden_size: 2560
+  local_files_only: true
+
+  # Connector
+  connector_expansion: 4
+
+  # DiT
+  rae_latent_dim: 1024
+  dit_dim: 1536
+  dit_ffn_dim: 8960
+  dit_freq_dim: 256
+  dit_num_heads: 12
+  dit_num_layers: 30
+  dit_patch_size: [1, 1, 1]  # no patchify; operate on native video latent grid
+  dit_max_seq_len: 1024
+  dit_window_size: [-1, -1]
+
+  # Flow matching
+  fm_num_steps: 50
+  fm_logit_normal_mean: 0.0
+  fm_logit_normal_std: 1.0
+  fm_model_timestep_scale: 1000.0
+
+rae:
+  model_name_or_path: "Qwen/Qwen3-VL-4B-Instruct"
+  decoder_config_path: "config/decoder_config.json"
+  decoder_checkpoint_path: "/scratch/e1539128/RAE/ckpts/stage1/qwen3vlrae_gram_v1.4_448/checkpoints/ep-0000029.pt"
+  decoder_checkpoint_source: "ema"
+  noise_tau: 0.0
+  in_channels: 3
+  denormalize_output: true
+  do_resize: false
+  local_files_only: true
+
+schedule_shift:
+  enabled: true
+  base_dim: 4096
+
+latent_norm:
+  enabled: true
+  stats_path: "ckpts/latent_stats.pt"
+  eps: 1.0e-6
+
+cfg:
+  context_dropout_prob: 0.0
+
+training:
+  epochs: 50
+  steps_per_epoch: 8000
+  # Global batch is fixed to 64; micro batch is auto-derived from GPU count.
+  global_batch_size: 48
+  accumulation_steps: 1
+  num_workers: 16
+  prefetch_factor: 4
+  clip_grad: 1.0
+  log_interval: 100
+  sample_every: 1000
+  checkpoint_every_steps: 2000
+  maintain_ema: true
+  ema_decay: 0.9999
+  precision: bf16
+  global_seed: 42
+
+  optimizer:
+    lr: 2.0e-4
+    betas: [0.9, 0.95]
+    weight_decay: 0.01
+
+  scheduler:
+    type: cosine
+    warmup_epochs: 0.1
+    decay_end_epoch: 50
+    base_lr: 2.0e-4
+    final_lr: 1.0e-6
+    warmup_from_zero: true
+
+data:
+  dataset_id: "lance-format/openvid-lance"
+  split: "train"
+  video_size: 256
+  window_frames: 64
+  frame_stride: 2
+  shuffle_buffer_size: 256
+  video_key: "video_blob"
+  video_keys: ["video_blob", "video", "blob", "bytes"]
+  text_keys: ["caption", "prompt", "text", "txt", "description", "title", "json"]
+  stream_retry:
+    max_consecutive_failures: 0  # <=0 means unlimited retries
+    base_sleep_seconds: 1.0
+    max_sleep_seconds: 30.0
+
+wandb:
+  enabled: true
+  project: "uni-vug-dit-video"
+  sample_with_ema: false
+  sample_num_steps: 10
+  sample_fps: 8
+  log_non_ema_samples: false
+  sample_prompts:
+    - "A robot dancing under neon lights in rainy night streets."
+    - "A snowy mountain landscape with flying birds and drifting clouds."
+    - "A surfer riding a giant wave during sunset, cinematic slow motion."

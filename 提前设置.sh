@@ -1,0 +1,1 @@
+export LD_LIBRARY_PATH=/home/svu/e1539128/ffmpeg-master-latest-linux64-gpl-shared/lib:$LD_LIBRARY_PATH

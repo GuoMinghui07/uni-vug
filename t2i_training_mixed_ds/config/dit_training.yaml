@@ -1,0 +1,144 @@
+# DiT Stage-2 Training Configuration
+# Trains DiT backbone + MLLM meta queries + connector
+# Frozen: MLLM backbone, RAE encoder, RAE decoder
+
+model:
+  # MLLM encoder
+  mllm_model_name: "Qwen/Qwen3-VL-4B-Instruct"
+  num_metaqueries: 256
+  mllm_hidden_size: 2560
+  local_files_only: true
+
+  # Connector
+  connector_expansion: 4
+
+  # DiT (Wan2.1 1.3B)
+  rae_latent_dim: 1024
+  dit_dim: 1536
+  dit_ffn_dim: 8960
+  dit_freq_dim: 256
+  dit_num_heads: 12
+  dit_num_layers: 30
+  dit_patch_size: [1, 1, 1]  # patchify disabled: DiT runs at native RAE latent grid
+  dit_max_seq_len: 1024
+  dit_window_size: [-1, -1]
+
+  # Flow matching
+  fm_num_steps: 10
+  fm_logit_normal_mean: 0.0
+  fm_logit_normal_std: 1.0
+  fm_model_timestep_scale: 1000.0  # Wan2.2-style timestep injection: t_model = sigma * scale
+
+# RAE (frozen, for encoding ground truth latents)
+rae:
+  model_name_or_path: "Qwen/Qwen3-VL-4B-Instruct"
+  decoder_config_path: "config/decoder_config.json"
+  decoder_checkpoint_path: "/scratch/e1539128/RAE/ckpts/stage1/qwen3vlrae_gram_v1.4_448/checkpoints/ep-0000029.pt"
+  decoder_checkpoint_source: "ema"
+  noise_tau: 0.0  # no noise for DiT training targets
+  in_channels: 3
+  denormalize_output: true
+  do_resize: false
+  local_files_only: true
+
+# Noise schedule shift (Scale-RAE)
+schedule_shift:
+  enabled: true
+  base_dim: 4096      
+
+# CFG (classifier-free guidance)
+cfg:
+  uncondition_dropout_prob: 0.1  # null-embedding dropout probability during training
+  # legacy alias (still supported): context_dropout_prob
+
+training:
+  epochs: 30
+  steps_per_epoch: 30000
+  micro_batch_size_per_gpu: 10
+  accumulation_steps: 4
+  # Optional compatibility override:
+  # global_batch_size must equal micro_batch_size_per_gpu * accumulation_steps * world_size.
+  # global_batch_size: 
+  num_workers: 2
+  prefetch_factor: 2
+  clip_grad: 1.0
+  log_interval: 20
+  sample_every: 1000
+  checkpoint_every_steps: 1000
+  maintain_ema: false
+  ema_decay: 0.9
+  # If true, when resuming from a checkpoint, EMA is reinitialized from the
+  # resumed model weights (no carry-over of historical EMA trajectory).
+  resume_init_ema_from_model: false
+  precision: bf16
+  global_seed: 42
+
+  optimizer:
+    lr: 2.0e-4
+    betas: [0.9, 0.95]
+    weight_decay: 0.01
+
+  scheduler:
+    type: cosine
+    warmup_epochs: 0.07
+    decay_end_epoch: 30
+    base_lr: 2.0e-4
+    final_lr: 1.0e-6
+    warmup_from_zero: true
+
+# Data
+data:
+  source: "webdataset_randommix"
+  # Three-dataset mixed training (same ratio as simulate_mixed_training_io.py)
+  datasets:
+    # - name: "pd12m"
+    #   url: "https://huggingface.co/datasets/Spawning/pd12m-full/resolve/main/{00155..02663}.tar"
+    #   weight: 0.6
+    # - name: "cc12m_wds"
+    #   url: "https://huggingface.co/datasets/pixparse/cc12m-wds/resolve/main/cc12m-train-{0000..2175}.tar"
+    #   weight: 0.6
+    # - name: "t2i2m"
+    #   url: "https://huggingface.co/datasets/jackyhate/text-to-image-2M/resolve/main/data_512_2M/data_{000000..000046}.tar"
+    #   weight: 0.2
+    # - name: "fine_t2i-enhanced_prompt_square_resolution"
+    #   url: "https://huggingface.co/datasets/ma-xu/fine-t2i/resolve/main/synthetic_enhanced_prompt_square_resolution/train-{000000..001543}.tar"
+    #   weight: 0.5
+    - name: "fine_t2i-original_prompt_square_resolution"
+      url: "https://huggingface.co/datasets/ma-xu/fine-t2i/resolve/main/synthetic_original_prompt_square_resolution/train-{000000..001310}.tar"
+      weight: 1.0
+  
+  split: "train"
+  image_size: 448
+  shuffle_buffer_size: 2000
+  loader_timeout: 600
+  max_errors_per_worker: 5000
+  curl:
+    connect_timeout: 30
+    max_time: 0  # no timeout
+    retry: 15
+    speed_time: 120
+    speed_limit: 65536
+    show_errors: true
+  stream_retry:
+    max_consecutive_failures: 32  # fail fast instead of infinite retry loops
+    rebuild_after_consecutive_failures: 6  # rebuild loader sooner after repeated failures
+    base_sleep_seconds: 2.0
+    max_sleep_seconds: 20.0
+  # webdataset to_tuple keys (simulate_mixed_training_io.py style)
+  text_keys: ["txt", "json", "caption"]
+  image_keys: ["jpg", "jpeg", "png", "webp"]
+
+# WandB
+wandb:
+  enabled: true
+  project: "uni-vug-dit"
+  sample_with_ema: false
+  sample_num_steps: 10
+  sample_guidance_scale: 7.0
+  sample_negative_prompt: "Bright tones, overexposed, oversharpening, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, walking backwards, computer-generated environment, weak dynamics, distorted and erratic motions, unstable framing and a disorganized composition."
+  log_non_ema_samples: false  # if true, log both non-EMA and EMA samples for comparison
+  # Fixed prompts for sample visualization (every sample_every steps)
+  sample_prompts:
+    - "A golden retriever puppy playing in a field of wildflowers under a blue sky."
+    - "A futuristic cityscape at sunset with flying cars and neon signs."
+    - "A cozy cabin in a snowy mountain landscape with smoke coming from the chimney."

@@ -1,0 +1,16 @@
+text-to-image dataset:
+
+Web-Scale: 
+LAION v2(1B): https://huggingface.co/datasets/laion/aesthetics_v2_4.75
+
+中规模：Spawning/pd12m-full: https://huggingface.co/datasets/Spawning/pd12m-full
+
+高质量：
+text-to-image-2M: https://huggingface.co/datasets/jackyhate/text-to-image-2M?utm_source=chatgpt.com
+
+fine-t2i (1.3M): https://huggingface.co/datasets/ma-xu/fine-t2i
+
+text-to-video dataset:
+
+高质量：
+OpenVid-1M: https://huggingface.co/datasets/lance-format/Openvid-1M

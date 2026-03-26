@@ -1,0 +1,52 @@
+stage_1:
+  target: qwen3_vl_rae_noncompressed.Qwen3VLRAE
+  params:
+    model_name_or_path: "Qwen/Qwen3-VL-4B-Instruct"
+    local_files_only: false
+    decoder_config_path: "configs/decoder/Qwen3VL"
+    noise_tau: 0.8
+    in_channels: 3
+    denormalize_output: true
+    do_resize: false
+    #normalization_stat_path: "models/stats/qwen25/imagenet1k/stat.pt"
+
+training:
+  epochs: 30
+  ema_decay: 0.9978
+  global_batch_size: 128
+  num_workers: 8
+  clip_grad: 0.0
+  log_interval: 100
+  checkpoint_interval: 1
+  sample_every: 500
+  optimizer:
+    lr: 2.0e-4
+    betas: [0.9, 0.95]
+    weight_decay: 0.0
+  scheduler:
+    type: cosine
+    warmup_epochs: 0.5
+    decay_end_epoch: 16
+    base_lr: 2.0e-4
+    final_lr: 2.0e-4
+    warmup_from_zero: true
+
+loss:
+  perceptual_weight: 1.0
+  lpips_start: 0
+
+gram:
+  weight: 50.0
+  layers: [0, 5, 10, 19, 28]
+  layer_weights: [1.0, 0.8, 0.4, 0.1, 0.0]
+  loss_type: "l1"
+  input_range: "0_1"
+  use_imagenet_norm: true
+  vgg_weights: "IMAGENET1K_V1"
+
+# eval:
+#   eval_interval: 2000
+#   eval_model: true
+#   data_path: "data/imagenet/val/"
+#   reference_npz_path: "data/imagenet/val_256.npz"
+#   metrics: ["psnr", "ssim", "rfid"]

@@ -1,0 +1,72 @@
+# ========= Datasets / Raw Data =========
+data/
+dataset/
+datasets/
+openvid_dataset_lance/
+imagenet_data/
+sanity-check-video-data/
+
+# Common large data formats
+*.parquet
+*.arrow
+*.h5
+*.hdf5
+*.lmdb
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.zst
+
+# ========= Checkpoints / Model Weights =========
+ckpt/
+ckpts/
+checkpoint/
+checkpoints/
+
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+
+# ========= Third-party Open Source Code =========
+DiT/
+Scale-RAE/
+UniVideo/
+Wan2.2/
+
+# Common vendor/external dirs (if used later)
+third_party/
+external/
+vendor/
+
+# ========= Experiment Logs / Outputs =========
+wandb/
+runs/
+outputs/
+logs/
+events.out.tfevents*
+
+# ========= Python Cache / Env =========
+__pycache__/
+*.py[cod]
+*.so
+.ipynb_checkpoints/
+
+.venv/
+venv/
+env/
+
+# ========= Local Tooling =========
+.DS_Store
+.idea/
+.vscode/
+
+# ========= Temporary / Scratch =========
+*.tmp
+*.temp
+*.swp
+*.swo
+
